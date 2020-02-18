@@ -10,12 +10,16 @@ class S3FileNamesListLambdaHandler : RequestHandler<HandlerInput, HandlerOutput>
         val bucketName = System.getenv("bucketName")
         val region = System.getenv("region")
         val fileStorage: FileStorage = S3FileStorage(bucketName, region)
+        val resultFiles = fileStorage.getFiles(input?.folder ?: "")
         return HandlerOutput(
-            fileStorage.getFiles()
-                .sortedBy { it.lastModifiedDate }
+            resultFiles
+                .sortedByDescending { it.lastModifiedDate }
                 .drop(input?.offset ?: 0)
                 .take(input?.count ?: 0)
-                .map { OutputElement(it.name, it.lastModifiedDate, it.byteSize) }
+                .map {
+                    OutputElement(it.name, it.lastModifiedDate.toString(), it.byteSize, it.downloadUrl.toExternalForm())
+                },
+            resultFiles.size
         )
     }
 }

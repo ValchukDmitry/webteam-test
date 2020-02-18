@@ -1,5 +1,5 @@
 package filestorage
 
 interface FileStorage {
-    fun getFiles(): List<File>
+    fun getFiles(folderName: String): List<File>
 }
