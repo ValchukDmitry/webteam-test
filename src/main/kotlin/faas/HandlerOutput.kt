@@ -1,5 +1,11 @@
 package faas
 
-data class OutputElement(val name: String, val modifiedDate: String, val size: Long, val downloadLink: String? = null)
+data class FileOutput(
+    val name: String,
+    val modifiedDate: String,
+    val size: Long,
+    val downloadLink: String? = null,
+    val isDirectory: Boolean = false
+)
 
-data class HandlerOutput(val files: List<OutputElement>, val count: Int)
+data class HandlerOutput(val files: List<FileOutput>, val count: Int)

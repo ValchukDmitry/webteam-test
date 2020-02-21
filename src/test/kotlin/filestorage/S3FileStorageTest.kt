@@ -11,7 +11,6 @@ import io.mockk.verify
 import org.junit.Assert.assertEquals
 import org.junit.Before
 import org.junit.Test
-import java.net.URI
 import java.net.URL
 import java.util.*
 
