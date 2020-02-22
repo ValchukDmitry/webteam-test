@@ -3,10 +3,6 @@
     <Appenders>
         <Lambda name="Lambda">
             <JsonLayout>
-                <KeyValuePair key="Source" value="RSA"/>
-                <KeyValuePair key="JobId" value="$${rsalog4jlookup:jobid}"/>
-                <KeyValuePair key="CloudWatch.LogGroup" value="$${rsalog4jlookup:loggroup}"/>
-                <KeyValuePair key="CloudWatch.LogStream" value="$${rsalog4jlookup:logstream}"/>
             </JsonLayout>
         </Lambda>
     </Appenders>
