@@ -1,11 +1,15 @@
 package filestorage
 
 import com.amazonaws.AmazonServiceException
+import com.amazonaws.HttpMethod
 import com.amazonaws.SdkClientException
 import com.amazonaws.services.s3.AmazonS3
 import com.amazonaws.services.s3.AmazonS3ClientBuilder
+import com.amazonaws.services.s3.model.GeneratePresignedUrlRequest
 import com.amazonaws.services.s3.model.ObjectListing
 import org.apache.logging.log4j.LogManager
+import java.net.URL
+import java.util.*
 
 
 class S3FileStorage(val bucketName: String, region: String) : FileStorage {
@@ -14,6 +18,7 @@ class S3FileStorage(val bucketName: String, region: String) : FileStorage {
     companion object {
         val logger = LogManager.getLogger(S3FileStorage::class)
         private val DOWNLOADABLE_STORAGES = listOf("STANDARD")
+        private val linkExpirationTime = 1000 * 60 * 60.toLong()
     }
 
     init {
@@ -42,7 +47,7 @@ class S3FileStorage(val bucketName: String, region: String) : FileStorage {
                         it.lastModified,
                         false,
                         DOWNLOADABLE_STORAGES.contains(it.storageClass),
-                        s3Client.getUrl(bucketName, it.key)
+                        getDownloadUrl(it.key)
                     )
                 }
                 .map(::getFolder)
@@ -66,6 +71,17 @@ class S3FileStorage(val bucketName: String, region: String) : FileStorage {
             logger.error("S3 was not able to process client request", e)
             throw e
         }
+    }
+
+    private fun getDownloadUrl(fileName: String): URL {
+        val expiration = Date()
+        expiration.time += linkExpirationTime
+        val generatePresignedUrlRequest =
+            GeneratePresignedUrlRequest(bucketName, fileName)
+                .withMethod(HttpMethod.GET)
+                .withExpiration(expiration)
+
+        return s3Client.generatePresignedUrl(generatePresignedUrlRequest)
     }
 
     private fun getFolder(file: File): File {
