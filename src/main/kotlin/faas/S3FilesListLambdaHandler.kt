@@ -5,11 +5,16 @@ import com.amazonaws.services.lambda.runtime.RequestHandler
 import filestorage.FileStorage
 import filestorage.S3FileStorage
 
-class S3FileNamesListLambdaHandler : RequestHandler<HandlerInput, HandlerOutput> {
+/**
+ * AWS Lambda Handler which returns list of S3 files
+ * It takes bucketName and region of S3 storage and linkExpirationTime
+ */
+class S3FilesListLambdaHandler : RequestHandler<HandlerInput, HandlerOutput> {
     private companion object {
         val bucketName = System.getenv("bucketName")
         val region = System.getenv("region")
-        val fileStorage: FileStorage = S3FileStorage(bucketName, region)
+        val linkExpirationTime = System.getenv("linkExpirationTime")?.toLong() ?: 60 * 60 * 1000
+        val fileStorage: FileStorage = S3FileStorage(bucketName, region, linkExpirationTime)
     }
 
     override fun handleRequest(input: HandlerInput?, context: Context?): HandlerOutput {
