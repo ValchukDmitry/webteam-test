@@ -21,7 +21,7 @@ class S3FilesListLambdaHandler : RequestHandler<HandlerInput, HandlerOutput> {
         val resultFiles = fileStorage.getFiles(input?.folder ?: "")
 
         return HandlerOutput(
-            resultFiles.sortedByDescending { it.isFolder }
+            resultFiles.sortedByDescending { it.isDirectory }
                 .drop(input?.offset ?: 0)
                 .take(input?.count ?: 0)
                 .map {
@@ -31,7 +31,7 @@ class S3FilesListLambdaHandler : RequestHandler<HandlerInput, HandlerOutput> {
                         it.byteSize,
                         it.isDownloadable,
                         it.downloadUrl?.toExternalForm(),
-                        it.isFolder
+                        it.isDirectory
                     )
                 },
             resultFiles.size

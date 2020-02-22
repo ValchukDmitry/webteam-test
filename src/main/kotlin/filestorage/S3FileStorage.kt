@@ -16,8 +16,13 @@ import java.util.*
 /**
  * @see FileStorage implementation for AWS S3
  */
-class S3FileStorage(val bucketName: String, region: String, val linkExpirationTime: Long = 1000 * 60 * 60) : FileStorage {
+class S3FileStorage(
+    val bucketName: String,
+    region: String,
+    val linkExpirationTime: Long = 1000 * 60 * 60
+) : FileStorage {
     private val s3Client: AmazonS3 = AmazonS3ClientBuilder.standard().withRegion(region).build()
+
     companion object {
         private val delimiter = '/'
         private val logger = LogManager.getLogger(S3FileStorage::class)
@@ -33,6 +38,9 @@ class S3FileStorage(val bucketName: String, region: String, val linkExpirationTi
         try {
             val objectListing: ObjectListing = s3Client.listObjects(bucketName)
             val allFiles = objectListing.objectSummaries
+
+            val filesAtDirectory = allFiles
+                .filter { it.key.startsWith(directoryNameWithDelimiter) }
                 .map {
                     File(
                         it.key.removePrefix(directoryNameWithDelimiter),
@@ -40,15 +48,16 @@ class S3FileStorage(val bucketName: String, region: String, val linkExpirationTi
                         it.lastModified,
                         false,
                         isDownloadable(it),
-                        getDownloadUrl(it.key)
+                        if (isDownloadable(it)) {
+                            getDownloadUrl(it.key)
+                        } else {
+                            null
+                        }
                     )
                 }
-            logger.info("Found ${allFiles.size} total files")
-
-            val filesAtDirectory = allFiles
-                .filter { it.name.startsWith(directoryNameWithDelimiter) }
-                .map(::getFolder)
-                .filter(::filterFileAtAnotherFolders)
+                .filter { !it.name.isBlank() }
+                .map(::formDirectoryFromFile)
+                .filter(::filterFileAtAnotherDirectories)
             logger.info("Found ${filesAtDirectory.size} files at directory $directoryName")
 
             return filesAtDirectory
@@ -58,8 +67,8 @@ class S3FileStorage(val bucketName: String, region: String, val linkExpirationTi
                         it.key,
                         it.value.map { it.byteSize }.sum(),
                         it.value.map { it.lastModifiedDate }.max()!!,
-                        it.value.first().isFolder,
-                        !it.value.first().isFolder && it.value.first().isDownloadable,
+                        it.value.first().isDirectory,
+                        !it.value.first().isDirectory && it.value.first().isDownloadable,
                         it.value.first().downloadUrl
                     )
                 }
@@ -67,12 +76,12 @@ class S3FileStorage(val bucketName: String, region: String, val linkExpirationTi
             logger.error("S3 client couldn`t get any response", e)
             throw e
         } catch (e: AmazonServiceException) {
-            logger.error("S3 was not able to process client request", e)
+            logger.error("S3 was not able to process client`s request", e)
             throw e
         }
     }
 
-    private fun isDownloadable(s3Object : S3ObjectSummary): Boolean {
+    private fun isDownloadable(s3Object: S3ObjectSummary): Boolean {
         return DOWNLOADABLE_STORAGES.contains(s3Object.storageClass)
     }
 
@@ -87,7 +96,7 @@ class S3FileStorage(val bucketName: String, region: String, val linkExpirationTi
         return s3Client.generatePresignedUrl(generatePresignedUrlRequest)
     }
 
-    private fun getFolder(file: File): File {
+    private fun formDirectoryFromFile(file: File): File {
         if (file.name.contains(delimiter)) {
             return File(
                 file.name.substringBefore(delimiter),
@@ -101,7 +110,7 @@ class S3FileStorage(val bucketName: String, region: String, val linkExpirationTi
         return file
     }
 
-    private fun filterFileAtAnotherFolders(file: File): Boolean {
+    private fun filterFileAtAnotherDirectories(file: File): Boolean {
         return !file.name.contains(delimiter)
     }
 }

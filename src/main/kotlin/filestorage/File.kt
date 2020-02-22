@@ -7,7 +7,7 @@ data class File(
     val name: String,
     val byteSize: Long,
     val lastModifiedDate: Date,
-    val isFolder: Boolean,
+    val isDirectory: Boolean,
     val isDownloadable: Boolean,
     val downloadUrl: URL?
 )
