@@ -7,11 +7,13 @@ import com.amazonaws.services.s3.AmazonS3ClientBuilder
 import com.amazonaws.services.s3.model.ObjectListing
 import org.apache.logging.log4j.LogManager
 
+
 class S3FileStorage(val bucketName: String, region: String) : FileStorage {
     private val s3Client: AmazonS3
 
     companion object {
         val logger = LogManager.getLogger(S3FileStorage::class)
+        private val DOWNLOADABLE_STORAGES = listOf("STANDARD")
     }
 
     init {
@@ -19,22 +21,27 @@ class S3FileStorage(val bucketName: String, region: String) : FileStorage {
     }
 
     private val delimiter = '/'
-    override fun getFiles(folderName: String): List<File> {
-        val folderNameWithDelimiter = if (folderName.endsWith('/') || folderName.isBlank()) {
-            folderName
+    override fun getFiles(directoryName: String): List<File> {
+        val directoryNameWithDelimiter = if (directoryName.endsWith('/') || directoryName.isBlank()) {
+            directoryName
         } else {
-            "$folderName$delimiter"
+            "$directoryName$delimiter"
         }
         try {
             val objectListing: ObjectListing = s3Client.listObjects(bucketName)
-            return objectListing.objectSummaries
-                .filter { it.key.startsWith(folderNameWithDelimiter) }
+            val allFiles = objectListing.objectSummaries
+            logger.info("Found ${allFiles.size} total files")
+            val filesAtDirectory = allFiles
+                .filter { it.key.startsWith(directoryNameWithDelimiter) }
+            logger.info("Found ${filesAtDirectory.size} files at directory $directoryName")
+            return filesAtDirectory
                 .map {
                     File(
-                        it.key.removePrefix(folderNameWithDelimiter),
+                        it.key.removePrefix(directoryNameWithDelimiter),
                         it.size,
                         it.lastModified,
                         false,
+                        DOWNLOADABLE_STORAGES.contains(it.storageClass),
                         s3Client.getUrl(bucketName, it.key)
                     )
                 }
@@ -48,6 +55,7 @@ class S3FileStorage(val bucketName: String, region: String) : FileStorage {
                         it.value.map { it.byteSize }.sum(),
                         it.value.map { it.lastModifiedDate }.max()!!,
                         it.value.first().isFolder,
+                        !it.value.first().isFolder && it.value.first().isDownloadable,
                         it.value.first().downloadUrl
                     )
                 }
@@ -67,6 +75,7 @@ class S3FileStorage(val bucketName: String, region: String) : FileStorage {
                 file.byteSize,
                 file.lastModifiedDate,
                 true,
+                false,
                 file.downloadUrl
             )
         }
