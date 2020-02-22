@@ -8,5 +8,6 @@ data class File(
     val byteSize: Long,
     val lastModifiedDate: Date,
     val isFolder: Boolean,
-    val downloadUrl: URL
+    val isDownloadable: Boolean,
+    val downloadUrl: URL?
 )
