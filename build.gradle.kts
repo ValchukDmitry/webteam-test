@@ -19,6 +19,10 @@ dependencies {
     implementation("com.amazonaws:aws-java-sdk-s3")
     implementation("com.amazonaws:aws-lambda-java-log4j2:1.0.0")
 
+    compile("org.apache.logging.log4j:log4j-core:2.12.1")
+    compile("org.apache.logging.log4j:log4j-api:2.12.1")
+
+
     testCompile("junit:junit:4.12")
     testCompile("io.mockk:mockk:1.9")
 }
