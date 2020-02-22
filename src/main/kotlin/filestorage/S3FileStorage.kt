@@ -7,25 +7,23 @@ import com.amazonaws.services.s3.AmazonS3
 import com.amazonaws.services.s3.AmazonS3ClientBuilder
 import com.amazonaws.services.s3.model.GeneratePresignedUrlRequest
 import com.amazonaws.services.s3.model.ObjectListing
+import com.amazonaws.services.s3.model.S3ObjectSummary
 import org.apache.logging.log4j.LogManager
 import java.net.URL
 import java.util.*
 
 
-class S3FileStorage(val bucketName: String, region: String) : FileStorage {
-    private val s3Client: AmazonS3
-
+/**
+ * @see FileStorage implementation for AWS S3
+ */
+class S3FileStorage(val bucketName: String, region: String, val linkExpirationTime: Long = 1000 * 60 * 60) : FileStorage {
+    private val s3Client: AmazonS3 = AmazonS3ClientBuilder.standard().withRegion(region).build()
     companion object {
-        val logger = LogManager.getLogger(S3FileStorage::class)
+        private val delimiter = '/'
+        private val logger = LogManager.getLogger(S3FileStorage::class)
         private val DOWNLOADABLE_STORAGES = listOf("STANDARD")
-        private val linkExpirationTime = 1000 * 60 * 60.toLong()
     }
 
-    init {
-        s3Client = AmazonS3ClientBuilder.standard().withRegion(region).build()
-    }
-
-    private val delimiter = '/'
     override fun getFiles(directoryName: String): List<File> {
         val directoryNameWithDelimiter = if (directoryName.endsWith('/') || directoryName.isBlank()) {
             directoryName
@@ -35,24 +33,25 @@ class S3FileStorage(val bucketName: String, region: String) : FileStorage {
         try {
             val objectListing: ObjectListing = s3Client.listObjects(bucketName)
             val allFiles = objectListing.objectSummaries
-            logger.info("Found ${allFiles.size} total files")
-            val filesAtDirectory = allFiles
-                .filter { it.key.startsWith(directoryNameWithDelimiter) }
-            logger.info("Found ${filesAtDirectory.size} files at directory $directoryName")
-            return filesAtDirectory
                 .map {
                     File(
                         it.key.removePrefix(directoryNameWithDelimiter),
                         it.size,
                         it.lastModified,
                         false,
-                        DOWNLOADABLE_STORAGES.contains(it.storageClass),
+                        isDownloadable(it),
                         getDownloadUrl(it.key)
                     )
                 }
+            logger.info("Found ${allFiles.size} total files")
+
+            val filesAtDirectory = allFiles
+                .filter { it.name.startsWith(directoryNameWithDelimiter) }
                 .map(::getFolder)
                 .filter(::filterFileAtAnotherFolders)
-                .sortedByDescending { it.name }
+            logger.info("Found ${filesAtDirectory.size} files at directory $directoryName")
+
+            return filesAtDirectory
                 .groupBy { it.name }
                 .map {
                     File(
@@ -71,6 +70,10 @@ class S3FileStorage(val bucketName: String, region: String) : FileStorage {
             logger.error("S3 was not able to process client request", e)
             throw e
         }
+    }
+
+    private fun isDownloadable(s3Object : S3ObjectSummary): Boolean {
+        return DOWNLOADABLE_STORAGES.contains(s3Object.storageClass)
     }
 
     private fun getDownloadUrl(fileName: String): URL {
