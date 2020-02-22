@@ -2,9 +2,12 @@
 <Configuration packages="com.amazonaws.services.lambda.runtime.log4j2">
     <Appenders>
         <Lambda name="Lambda">
-            <PatternLayout>
-                <pattern>%d{yyyy-MM-dd HH:mm:ss} %X{AWSRequestId} %-5p %c{1}:%L - %m%n</pattern>
-            </PatternLayout>
+            <JsonLayout>
+                <KeyValuePair key="Source" value="RSA"/>
+                <KeyValuePair key="JobId" value="$${rsalog4jlookup:jobid}"/>
+                <KeyValuePair key="CloudWatch.LogGroup" value="$${rsalog4jlookup:loggroup}"/>
+                <KeyValuePair key="CloudWatch.LogStream" value="$${rsalog4jlookup:logstream}"/>
+            </JsonLayout>
         </Lambda>
     </Appenders>
     <Loggers>
