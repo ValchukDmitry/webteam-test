@@ -1,0 +1,58 @@
+.object_card {
+    border: 1px solid grey;
+    padding-left: 10px;
+    padding-right: 10px;
+    width: 100%;
+    height: 35px;
+    line-height: 35px;
+    display: inline-block;
+}
+
+
+.object_card_icon {
+    height: 35px;
+    width: 35px;
+    margin-right: 10px;
+    float: left;
+}
+
+.object_card_icon img {
+    height: 15px;
+    width: 15px;
+}
+
+.object_card:hover {
+    background-color: #a7d4fa;
+}
+
+.object_card_name {
+    float: left;
+    display: inline-block;
+    width: 20%;
+    height: 35px;
+    margin-right: 10%;
+    text-overflow: ellipsis;
+    overflow: hidden;
+    white-space: nowrap;
+}
+
+.object_card_size {
+    float: left;
+    text-align: left;
+    display: inline-block;
+    width: 15%;
+    align-self: flex-end;
+}
+
+.object_card_modified {
+    text-align: left;
+    display: inline-block;
+    width: 25%;
+}
+
+.object_card_download_link {
+    float: right;
+    text-align: right;
+    display: inline-block;
+    width: 80px;
+}
