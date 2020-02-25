@@ -1,5 +1,8 @@
 import React, { Component } from 'react';
 import directory_icon from '../assets/images/folder_icon.png';
+
+import PropTypes from 'prop-types';
+
 import './styles/ObjectCard.css';
 
 import { Link, withRouter } from "react-router-dom";
@@ -17,6 +20,10 @@ class DirectoryCard extends Component {
             </Link>
         );
     }
+}
+
+DirectoryCard.propTypes = {
+    name: PropTypes.string.isRequired,
 }
 
 export default withRouter(DirectoryCard);
