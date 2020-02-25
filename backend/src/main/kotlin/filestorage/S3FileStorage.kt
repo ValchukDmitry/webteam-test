@@ -6,7 +6,6 @@ import com.amazonaws.SdkClientException
 import com.amazonaws.services.s3.AmazonS3
 import com.amazonaws.services.s3.AmazonS3ClientBuilder
 import com.amazonaws.services.s3.model.GeneratePresignedUrlRequest
-import com.amazonaws.services.s3.model.ObjectListing
 import com.amazonaws.services.s3.model.S3ObjectSummary
 import org.apache.logging.log4j.LogManager
 import java.net.URL
@@ -17,61 +16,28 @@ import java.util.*
  * @see FileStorage implementation for AWS S3
  */
 class S3FileStorage(
-    val bucketName: String,
+    private val bucketName: String,
     region: String,
-    val linkExpirationTime: Long = 1000 * 60 * 60
+    private val linkExpirationTime: Long = 1000 * 60 * 60
 ) : FileStorage {
     private val s3Client: AmazonS3 = AmazonS3ClientBuilder.standard().withRegion(region).build()
 
     companion object {
-        private val delimiter = '/'
+        private const val delimiter = '/'
         private val logger = LogManager.getLogger(S3FileStorage::class)
         private val DOWNLOADABLE_STORAGES = listOf("STANDARD")
     }
 
     override fun getFiles(directoryName: String): List<File> {
+        // make directory name unified
         val directoryNameWithDelimiter = if (directoryName.endsWith('/') || directoryName.isBlank()) {
             directoryName
         } else {
             "$directoryName$delimiter"
         }
-        try {
-            val objectListing: ObjectListing = s3Client.listObjects(bucketName)
-            val allFiles = objectListing.objectSummaries
 
-            val filesAtDirectory = allFiles
-                .filter { it.key.startsWith(directoryNameWithDelimiter) }
-                .map {
-                    File(
-                        it.key.removePrefix(directoryNameWithDelimiter),
-                        it.size,
-                        it.lastModified,
-                        false,
-                        isDownloadable(it),
-                        if (isDownloadable(it)) {
-                            getDownloadUrl(it.key)
-                        } else {
-                            null
-                        }
-                    )
-                }
-                .filter { !it.name.isBlank() }
-                .map(::formDirectoryFromFile)
-                .filter(::filterFileAtAnotherDirectories)
-            logger.info("Found ${filesAtDirectory.size} files at directory $directoryName")
-
-            return filesAtDirectory
-                .groupBy { it.name }
-                .map {
-                    File(
-                        it.key,
-                        it.value.map { it.byteSize }.sum(),
-                        it.value.map { it.lastModifiedDate }.max()!!,
-                        it.value.first().isDirectory,
-                        !it.value.first().isDirectory && it.value.first().isDownloadable,
-                        it.value.first().downloadUrl
-                    )
-                }
+        val objectListing = try {
+            s3Client.listObjects(bucketName)
         } catch (e: SdkClientException) {
             logger.error("S3 client couldn`t get any response", e)
             throw e
@@ -79,6 +45,50 @@ class S3FileStorage(
             logger.error("S3 was not able to process client`s request", e)
             throw e
         }
+
+        val allFiles = objectListing.objectSummaries
+        val filesAtDirectory = allFiles
+            .asSequence()
+            .filter { fileInDirectory(directoryNameWithDelimiter, it) }
+            .map {
+                File(
+                    it.key.removePrefix(directoryNameWithDelimiter),
+                    it.size,
+                    it.lastModified,
+                    false,
+                    isDownloadable(it),
+                    if (isDownloadable(it)) {
+                        getDownloadUrl(it.key)
+                    } else {
+                        null
+                    }
+                )
+            }
+            .filter { !it.name.isBlank() }
+            .map(::formDirectoryFromFile)
+            .filter(::filterFileInInternalDirectories)
+            .groupBy { it.name }
+            .map { directoryFile(it) }
+            .toList()
+
+        logger.info("Found ${filesAtDirectory.size} files at directory $directoryName")
+
+        return filesAtDirectory
+    }
+
+    private fun directoryFile(files: Map.Entry<String, List<File>>): File {
+        return File(
+            files.key,
+            files.value.map { it.byteSize }.sum(),
+            files.value.map { it.lastModifiedDate }.max()!!,
+            files.value.first().isDirectory,
+            !files.value.first().isDirectory && files.value.first().isDownloadable,
+            files.value.first().downloadUrl
+        )
+    }
+
+    private fun fileInDirectory(directoryNameWithDelimiter: String, it: S3ObjectSummary): Boolean {
+        return it.key.startsWith(directoryNameWithDelimiter)
     }
 
     private fun isDownloadable(s3Object: S3ObjectSummary): Boolean {
@@ -92,8 +102,13 @@ class S3FileStorage(
             GeneratePresignedUrlRequest(bucketName, fileName)
                 .withMethod(HttpMethod.GET)
                 .withExpiration(expiration)
+        try {
+            return s3Client.generatePresignedUrl(generatePresignedUrlRequest)
+        } catch (e: SdkClientException) {
+            logger.error("Failed to generate presigned URL for file ${fileName}", e)
+            throw e
+        }
 
-        return s3Client.generatePresignedUrl(generatePresignedUrlRequest)
     }
 
     private fun formDirectoryFromFile(file: File): File {
@@ -110,7 +125,7 @@ class S3FileStorage(
         return file
     }
 
-    private fun filterFileAtAnotherDirectories(file: File): Boolean {
+    private fun filterFileInInternalDirectories(file: File): Boolean {
         return !file.name.contains(delimiter)
     }
 }
