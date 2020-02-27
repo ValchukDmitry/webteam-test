@@ -27,6 +27,7 @@ class S3FileStorageTest {
         mockkStatic(AmazonS3ClientBuilder::class)
         every { AmazonS3ClientBuilder.standard() } returns clientBuilderMock
         every { clientBuilderMock.withRegion(any<String>()) } returns clientBuilderMock
+        every { clientBuilderMock.enablePathStyleAccess() } returns clientBuilderMock
         every { clientBuilderMock.build() } returns amazonS3ClientMock
         every { amazonS3ClientMock.listObjects(any<String>()) } returns objectListingMock
         every { amazonS3ClientMock.getUrl(any<String>(), any<String>()) } returns testUrl

@@ -5,6 +5,7 @@ import com.amazonaws.HttpMethod
 import com.amazonaws.SdkClientException
 import com.amazonaws.services.s3.AmazonS3
 import com.amazonaws.services.s3.AmazonS3ClientBuilder
+import com.amazonaws.services.s3.S3ClientOptions
 import com.amazonaws.services.s3.model.GeneratePresignedUrlRequest
 import com.amazonaws.services.s3.model.S3ObjectSummary
 import org.apache.logging.log4j.LogManager
@@ -20,7 +21,10 @@ class S3FileStorage(
     region: String,
     private val linkExpirationTime: Long = 1000 * 60 * 60
 ) : FileStorage {
-    private val s3Client: AmazonS3 = AmazonS3ClientBuilder.standard().withRegion(region).build()
+    private val s3Client: AmazonS3 = AmazonS3ClientBuilder.standard()
+        .withRegion(region)
+        .enablePathStyleAccess()
+        .build()
 
     companion object {
         private const val delimiter = '/'
