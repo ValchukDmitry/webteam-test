@@ -2,8 +2,8 @@ package faas
 
 import com.amazonaws.services.lambda.runtime.Context
 import com.amazonaws.services.lambda.runtime.RequestHandler
+import filestorage.S3FileSequenceGenerator
 import filestorage.FileStorage
-import filestorage.S3FileStorage
 
 /**
  * AWS Lambda Handler which returns list of S3 files
@@ -14,16 +14,18 @@ class S3FilesListLambdaHandler : RequestHandler<HandlerInput, HandlerOutput> {
         val bucketName = System.getenv("bucketName")
         val region = System.getenv("region")
         val linkExpirationTime = System.getenv("linkExpirationTime")?.toLong() ?: 60 * 60 * 1000
-        val fileStorage: FileStorage = S3FileStorage(bucketName, region, linkExpirationTime)
+        val fileStorage: FileStorage = FileStorage(
+            S3FileSequenceGenerator(bucketName, region, linkExpirationTime)
+        )
     }
 
     override fun handleRequest(input: HandlerInput?, context: Context?): HandlerOutput {
-        val resultFiles = fileStorage.getFiles(input?.folder ?: "")
+        val resultFiles = fileStorage.getFiles(input?.folder ?: "",
+            input?.offset ?: 0,
+            input?.count ?: 1)
 
         return HandlerOutput(
-            resultFiles.sortedByDescending { it.isDirectory }
-                .drop(input?.offset ?: 0)
-                .take(input?.count ?: 0)
+            resultFiles.files.sortedByDescending { it.isDirectory }
                 .map {
                     FileOutput(
                         it.name,
@@ -34,7 +36,7 @@ class S3FilesListLambdaHandler : RequestHandler<HandlerInput, HandlerOutput> {
                         it.isDirectory
                     )
                 },
-            resultFiles.size
+            resultFiles.totalSize
         )
     }
 }
