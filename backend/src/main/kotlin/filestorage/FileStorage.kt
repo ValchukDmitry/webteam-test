@@ -16,10 +16,6 @@ class FileStorage(private val fileSequence: FileSequenceGenerator, private val d
             "$directoryName$delimiter"
         }
 
-        // TODO: remove it
-        val bufFiles = fileSequence.getFiles(directoryNameWithDelimiter).toList()
-        logger.info(bufFiles.size)
-
         val filesAtDirectory = fileSequence
             .getFiles(directoryNameWithDelimiter)
             .map(::formDirectoryFromFile)
